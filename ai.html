@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexora AI Problem Solver</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <!-- KaTeX -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css" xintegrity="sha384-GvrSgYjU6d7n1yG5f5/X6j0rJ+s1jM/QJ4vW8/V4L5p2E4N5k5v5W4q7N3v4j9f" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js" xintegrity="sha384-sW2Z7t/V4D6zG2k5K5/L3X7b6vW8H5/C2+vM/J4y8T6f5x5v4j9f" crossorigin="anonymous"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f7f9fb; }
+        .container-card { box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08); }
+        .loading-spinner { border-top-color: #3b82f6; animation: spin 1s linear infinite; border-width: 4px; border-radius: 50%; border-style: solid; border-color: #e5e7eb; width: 32px; height: 32px; }
+        @keyframes spin { 0%{transform:rotate(0deg);}100%{transform:rotate(360deg);} }
+        .katex-display { overflow-x:auto; padding:8px 0; margin:10px 0; }
+        #answer-output ul { list-style-type: disc; }
+        #answer-output ul, #answer-output ol { padding-left:20px; margin-bottom:10px; }
+        #answer-output li { margin-bottom:4px; }
+        #answer-output h3 { font-size: 1.125rem; font-weight: 600; margin-top: 1rem; margin-bottom: 0.5rem; }
+        #answer-output h2 { font-size: 1.5rem; font-weight: 700; margin-top: 1.5rem; margin-bottom: 0.75rem; }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+<div id="app" class="w-full max-w-4xl bg-white rounded-xl container-card p-6 md:p-10">
+    <header class="text-center mb-8">
+        <h1 class="text-3xl md:text-4xl font-bold text-gray-800 flex items-center justify-center space-x-2">
+            <i data-lucide="cpu" class="w-8 h-8 text-indigo-600"></i>
+            <span>Nexora AI Problem Solver</span>
+        </h1>
+        <p class="text-gray-500 mt-2 text-lg">Upload a diagram/image and get step-by-step solutions instantly.</p>
+        <p class="text-xs text-gray-400 mt-1">Built by Mihir Kamat</p>
+    </header>
+
+    <div class="space-y-6">
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Upload Image</label>
+            <input type="file" id="image-input" accept="image/*" onchange="previewImage(event)" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+        </div>
+
+        <div id="image-preview-container" class="hidden p-4 border-2 border-dashed border-gray-300 rounded-lg">
+            <img id="image-preview" class="max-w-full h-auto max-h-64 object-contain mx-auto rounded-md shadow-lg" alt="Preview">
+        </div>
+
+        <div>
+            <label for="question-input" class="block text-sm font-medium text-gray-700 mb-1">Your Question</label>
+            <textarea id="question-input" rows="2" placeholder="E.g., Solve for X" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out text-base resize-none"></textarea>
+        </div>
+
+        <button id="submit-button" onclick="generateAnswer()" disabled class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-lg transition duration-150 ease-in-out flex items-center justify-center disabled:opacity-50">
+            <i data-lucide="zap" class="w-5 h-5 mr-2"></i> Analyze & Solve
+        </button>
+    </div>
+
+    <div id="results-container" class="border-t pt-6 mt-8 hidden">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-4 flex items-center space-x-2">
+            <i data-lucide="lightbulb" class="w-6 h-6 text-indigo-600"></i>
+            <span>Nexora AI's Solution</span>
+        </h2>
+        <div id="loading" class="hidden flex justify-center items-center py-8">
+            <div class="loading-spinner"></div>
+            <span class="ml-3 text-gray-500">Analyzing...</span>
+        </div>
+        <div id="answer-output" class="text-gray-700 leading-relaxed bg-indigo-50 p-4 rounded-lg"></div>
+    </div>
+</div>
+
+<script type="module">
+    // Defer loading of KaTeX script for better performance (Added 'defer' tag above)
+    lucide.createIcons();
+
+    // ***************************************************************
+    // IMPORTANT: When running this file LOCALLY, you MUST replace this 
+    // placeholder with your actual, valid Google AI API key.
+    // ***************************************************************
+    const API_KEY_PLACEHOLDER = "AIzaSyBmo0jGYv4w8TwYaOIZhgUgYstvDljlK9Y"; 
+    const apiKey = API_KEY_PLACEHOLDER; 
+    
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+    const systemPrompt = `You are Nexora AI, a student-focused academic problem-solver. Analyze the image and the user's question. Provide step-by-step solutions using LaTeX delimiters ($...$ for inline, $$...$$ for block) for all mathematical expressions and units.`;
+
+    let uploadedImage = null;
+
+    const imageInput = document.getElementById('image-input');
+    const questionInput = document.getElementById('question-input');
+    const submitButton = document.getElementById('submit-button');
+    const loadingDiv = document.getElementById('loading');
+    const answerOutput = document.getElementById('answer-output');
+    const resultsContainer = document.getElementById('results-container');
+    const imagePreview = document.getElementById('image-preview');
+    const imagePreviewContainer = document.getElementById('image-preview-container');
+
+    function checkInputs() {
+        submitButton.disabled = !uploadedImage || !questionInput.value.trim();
+    }
+
+    window.previewImage = (event) => {
+        const file = event.target.files[0];
+        if (!file) { imagePreviewContainer.classList.add('hidden'); uploadedImage = null; checkInputs(); return; }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            imagePreview.src = e.target.result;
+            imagePreviewContainer.classList.remove('hidden');
+            const base64String = e.target.result.split(',')[1];
+            const mimeType = e.target.result.split(':')[1].split(';')[0];
+            uploadedImage = { data: base64String, mimeType };
+            checkInputs();
+        };
+        reader.readAsDataURL(file);
+    };
+
+    questionInput.addEventListener('input', checkInputs);
+
+    /**
+     * Attempts a fetch request with exponential backoff for resilience against temporary 5xx errors (like 503).
+     * Increased max retries to 8 and optimized initial delay for faster response on brief server spikes.
+     */
+    async function fetchWithRetry(url, options, maxRetries = 8) {
+        for (let i = 0; i < maxRetries; i++) {
+            try {
+                const response = await fetch(url, options);
+                if (response.ok) return response;
+                
+                let delay = 0;
+                if (i === 0) {
+                    // First retry (Attempt 2) is fast: 500ms
+                    delay = 500;
+                } else {
+                    // Subsequent retries (Attempt 3+) use increasing exponential backoff: 2s, 4s, 8s, 16s...
+                    delay = 2**i * 1000; 
+                }
+
+                if ((response.status === 429 || response.status >= 500) && i < maxRetries - 1) {
+                    await new Promise(r => setTimeout(r, delay));
+                } else {
+                    const text = await response.text();
+                    // Log full error text to console, but keep message concise for UI/stack trace
+                    console.error(`API Request failed with status ${response.status}:`, text);
+                    throw new Error(`API Status ${response.status}. See console for details.`); 
+                }
+            } catch (e) { 
+                console.error('Fetch error:', e); 
+                if (i === maxRetries - 1) throw e; 
+                await new Promise(r => setTimeout(r, 2**i * 1000)); 
+            }
+        }
+    }
+
+    function renderLatex(text) {
+        if(typeof katex==='undefined') return text;
+        // Process Display Math: $$...$$
+        let result=text.replace(/\$\$([\s\S]*?)\$\$/g,(m,c)=>{try{return katex.renderToString(c.trim(),{throwOnError:false,displayMode:true});}catch(e){return`<span class="text-red-500">[Math Error]</span>`;}});
+        // Process Inline Math: $...$
+        result=result.replace(/\$([\s\S]*?)\$/g,(m,c)=>{try{return katex.renderToString(c.trim(),{throwOnError:false,displayMode:false});}catch(e){return`<span class="text-red-500">[Math Error]</span>`;}});
+        return result;
+    }
+
+    function markdownToHtml(md){
+        let html=md.replace(/^##\s*(.*)$/gm,'<h3 class="text-lg font-semibold mt-4 mb-2">$1</h3>')
+                    .replace(/^#\s*(.*)$/gm,'<h2 class="text-xl font-bold mt-6 mb-3">$1</h2>')
+                    .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
+                    .replace(/\*(.*?)\*/g,'<em>$1</em>')
+                    .replace(/_(.*?)_/g,'<em>$1</em>');
+        
+        // Ensure lists use correct tag filtering
+        const LIST_MARKER='<!--LIST-->';
+        html=html.replace(/(\n\s*([\*\-]|\d+\.)\s+.*)+/g,l=>{
+            let lines=l.split('\n').filter(ln=>ln.trim());
+            let isOrdered=/^\d+\./.test(lines[0].trim());
+            let listHtml=isOrdered?'<ol>':'<ul>';
+            for(let ln of lines){listHtml+=`<li>${ln.trim().replace(/^[\*\-]\s+/,'').replace(/^\d+\.\s+/,'')}</li>`;}
+            listHtml+=isOrdered?'</ol>':'</ul>';
+            return LIST_MARKER+listHtml+LIST_MARKER;
+        });
+        
+        // Paragraph wrapping
+        html=html.split('\n\n').map(p=>{
+            p=p.trim();
+            if(p.includes(LIST_MARKER)) {
+                return p.replace(new RegExp(LIST_MARKER,'g'),'');
+            }
+            return p.trim()?`<p class="mb-3">${p.trim()}</p>`:'';
+        }).join('');
+        
+        // Remove extraneous list markers leftover from simplified markdown processing
+        html = html.replace(/<!--LIST-->/g, ''); 
+        
+        return html;
+    }
+
+    window.generateAnswer=async()=>{
+        const userQuery=questionInput.value.trim();
+        // Check if API key is present for local development
+        if (!apiKey) {
+             answerOutput.innerHTML = `<p class="text-red-600 font-bold">API Key Missing!</p>
+                                     <p>You must replace <code>const API_KEY_PLACEHOLDER = "";</code> with your valid key to run this locally. The request was blocked with 403 Forbidden because no identity was provided.</p>`;
+             loadingDiv.classList.add('hidden');
+             resultsContainer.classList.remove('hidden');
+             submitButton.disabled = false;
+             submitButton.innerHTML = `<i data-lucide="zap" class="w-5 h-5 mr-2"></i> Analyze & Solve`;
+             lucide.createIcons();
+             return;
+        }
+
+        if(!uploadedImage||!userQuery){answerOutput.innerHTML='<p class="text-red-500">Please upload image AND enter question.</p>'; resultsContainer.classList.remove('hidden'); return;}
+        submitButton.disabled=true;
+        submitButton.innerHTML='<div class="loading-spinner w-5 h-5 mr-2"></div>Analyzing...'; // Added w-5 h-5 for consistent spinner size
+        loadingDiv.classList.remove('hidden'); resultsContainer.classList.remove('hidden'); answerOutput.innerHTML='';
+
+        try{
+            const payload={
+                contents:[{role:"user",parts:[{text:userQuery},{inlineData:{mimeType:uploadedImage.mimeType,data:uploadedImage.data}}]}],
+                systemInstruction:{parts:[{text:systemPrompt}]}
+            };
+            const resp=await fetchWithRetry(apiUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+            const result=await resp.json();
+            const candidate=result.candidates?.[0];
+            let rawText='';
+
+            if(candidate && candidate.content?.parts?.[0]?.text) {
+                rawText=candidate.content.parts[0].text;
+            } else if (result.promptFeedback && result.promptFeedback.blockReason) {
+                const blockReason = result.promptFeedback.blockReason;
+                console.error("API Call Blocked:", result);
+                rawText = `<p class="text-red-600 font-bold">Generation Failed: Content Blocked</p>
+                           <p>Nexora AI could not generate a solution because the input was blocked due to safety guidelines. (Reason: ${blockReason}). Please try rephrasing your question or using a different image.</p>`;
+            } else {
+                console.error("API Call Failed (Candidate Missing):", result);
+                rawText = `<p class="text-red-600 font-bold">Sorry, Nexora AI couldn't generate a solution.</p>
+                           <p>The model might have had trouble interpreting the image, or an unknown internal error occurred. Please check the browser console for details and try again with a clearer image or question.</p>`;
+            }
+
+            // Render LaTeX and then apply Markdown formatting
+            answerOutput.innerHTML=markdownToHtml(renderLatex(rawText));
+
+        }catch(e){
+            console.error(e);
+            answerOutput.innerHTML='<p class="text-red-600 font-bold">API Error. Check console and network.</p>';
+        }finally{
+            loadingDiv.classList.add('hidden');
+            submitButton.disabled=false;
+            submitButton.innerHTML='<i data-lucide="zap" class="w-5 h-5 mr-2"></i> Analyze & Solve';
+            lucide.createIcons();
+        }
+    };
+
+    document.addEventListener('DOMContentLoaded',checkInputs);
+</script>
+</body>
+</html>
