@@ -3,7 +3,7 @@
 **Instant Answers. 24/7 Availability. Smarter Learning.** > An AI-powered educational assistant designed to help students solve doubts, understand complex concepts, and debug code in real-time.
 
 <div align="center">
-  <img src="preview/ss.PNG" alt="NexoraAI Dashboard" width="400">
+  <img src="ss1.PNG" alt="NexoraAI Dashboard" width="400">
   <br>
   <em>NexoraAI Interface</em>
 </div>
