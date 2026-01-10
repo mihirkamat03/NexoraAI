@@ -1,10 +1,5 @@
-// Defer loading of KaTeX script for better performance (Added 'defer' tag above)
     lucide.createIcons();
 
-    // ***************************************************************
-    // IMPORTANT: When running this file LOCALLY, you MUST replace this 
-    // placeholder with your actual, valid Google AI API key.
-    // ***************************************************************
     const API_KEY_PLACEHOLDER = "AIzaSyBmo0jGYv4w8TwYaOIZhgUgYstvDljlK9Y"; 
     const apiKey = API_KEY_PLACEHOLDER; 
     
@@ -44,10 +39,6 @@
 
     questionInput.addEventListener('input', checkInputs);
 
-    /**
-     * Attempts a fetch request with exponential backoff for resilience against temporary 5xx errors (like 503).
-     * Increased max retries to 8 and optimized initial delay for faster response on brief server spikes.
-     */
     async function fetchWithRetry(url, options, maxRetries = 8) {
         for (let i = 0; i < maxRetries; i++) {
             try {
@@ -56,10 +47,8 @@
                 
                 let delay = 0;
                 if (i === 0) {
-                    // First retry (Attempt 2) is fast: 500ms
                     delay = 500;
                 } else {
-                    // Subsequent retries (Attempt 3+) use increasing exponential backoff: 2s, 4s, 8s, 16s...
                     delay = 2**i * 1000; 
                 }
 
@@ -81,9 +70,7 @@
 
     function renderLatex(text) {
         if(typeof katex==='undefined') return text;
-        // Process Display Math: $$...$$
         let result=text.replace(/\$\$([\s\S]*?)\$\$/g,(m,c)=>{try{return katex.renderToString(c.trim(),{throwOnError:false,displayMode:true});}catch(e){return`<span class="text-red-500">[Math Error]</span>`;}});
-        // Process Inline Math: $...$
         result=result.replace(/\$([\s\S]*?)\$/g,(m,c)=>{try{return katex.renderToString(c.trim(),{throwOnError:false,displayMode:false});}catch(e){return`<span class="text-red-500">[Math Error]</span>`;}});
         return result;
     }
@@ -95,7 +82,6 @@
                     .replace(/\*(.*?)\*/g,'<em>$1</em>')
                     .replace(/_(.*?)_/g,'<em>$1</em>');
         
-        // Ensure lists use correct tag filtering
         const LIST_MARKER='<!--LIST-->';
         html=html.replace(/(\n\s*([\*\-]|\d+\.)\s+.*)+/g,l=>{
             let lines=l.split('\n').filter(ln=>ln.trim());
@@ -106,7 +92,6 @@
             return LIST_MARKER+listHtml+LIST_MARKER;
         });
         
-        // Paragraph wrapping
         html=html.split('\n\n').map(p=>{
             p=p.trim();
             if(p.includes(LIST_MARKER)) {
@@ -115,7 +100,6 @@
             return p.trim()?`<p class="mb-3">${p.trim()}</p>`:'';
         }).join('');
         
-        // Remove extraneous list markers leftover from simplified markdown processing
         html = html.replace(/<!--LIST-->/g, ''); 
         
         return html;
@@ -123,7 +107,6 @@
 
     window.generateAnswer=async()=>{
         const userQuery=questionInput.value.trim();
-        // Check if API key is present for local development
         if (!apiKey) {
              answerOutput.innerHTML = `<p class="text-red-600 font-bold">API Key Missing!</p>
                                      <p>You must replace <code>const API_KEY_PLACEHOLDER = "";</code> with your valid key to run this locally. The request was blocked with 403 Forbidden because no identity was provided.</p>`;
@@ -163,7 +146,6 @@
                            <p>The model might have had trouble interpreting the image, or an unknown internal error occurred. Please check the browser console for details and try again with a clearer image or question.</p>`;
             }
 
-            // Render LaTeX and then apply Markdown formatting
             answerOutput.innerHTML=markdownToHtml(renderLatex(rawText));
 
         }catch(e){
