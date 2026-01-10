@@ -64,4 +64,4 @@ A clean, distraction-free interface that provides instant, accurate, and context
 * **Role:** Lead Developer  
 * **Email:** kamatmihir.cse@gmail.com  
 * **GitHub:** [mihirkamat03](https://github.com/mihirkamat03)  
-* **LinkedIn:** [mihirkamat](https://linkedin/in/mihirkamat)  
+* **LinkedIn:** [mihirkamat](https://linkedin.com/in/mihirkamat)  
